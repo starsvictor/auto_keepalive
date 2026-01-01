@@ -140,7 +140,18 @@ class Serv00Login:
             await page.type('#id_password', password)
 
             # 点击登录按钮
-            login_button = await page.querySelector('#submit')
+            # 尝试多种选择器以确保找到按钮
+            login_button = await page.querySelector('button[type="submit"]')
+            if not login_button:
+                login_button = await page.querySelector('button.button--primary')
+            if not login_button:
+                login_button = await page.querySelector('input[type="submit"]')
+            if not login_button:
+                login_button = await page.querySelector('#submit')
+            if not login_button:
+                # 尝试通过文本内容查找
+                login_button = await page.querySelector('button:has-text("Sign in")')
+
             if login_button:
                 await login_button.click()
             else:
@@ -282,7 +293,7 @@ class ClawCloudLogin:
             else:
                 self.tg.send_photo(self.screenshots[-1], "登录完成")
 
-    def login_account(self, email: str, password: str) -> bool:
+    async def login_account(self, email: str, password: str) -> bool:
         """
         登录单个 ClawCloud 账号
 
@@ -300,26 +311,28 @@ class ClawCloudLogin:
         self.log(f'正在登录账号: {email}')
 
         try:
-            from playwright.sync_api import sync_playwright
+            from playwright.async_api import async_playwright
 
-            with sync_playwright() as p:
-                browser = p.chromium.launch(
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
                     headless=True,
                     args=['--no-sandbox', '--disable-setuid-sandbox']
                 )
-                context = browser.new_context(
+                context = await browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
                     user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 )
-                page = context.new_page()
+                page = await context.new_page()
 
                 try:
                     # 访问 ClawCloud
                     self.log("步骤1: 打开 ClawCloud", "STEP")
-                    page.goto(SIGNIN_URL, timeout=60000)
-                    page.wait_for_load_state('networkidle', timeout=30000)
-                    time.sleep(2)
-                    self.screenshot(page, "clawcloud")
+                    await page.goto(SIGNIN_URL, timeout=60000)
+                    await page.wait_for_load_state('networkidle', timeout=30000)
+                    await asyncio.sleep(2)
+                    await page.screenshot(path=f"{self.screenshot_count:02d}_clawcloud.png")
+                    self.screenshots.append(f"{self.screenshot_count:02d}_clawcloud.png")
+                    self.screenshot_count += 1
 
                     if 'signin' not in page.url.lower():
                         self.log("已登录！", "SUCCESS")
@@ -330,31 +343,37 @@ class ClawCloudLogin:
                     # 点击 Google 登录
                     self.log("步骤2: 点击 Google 登录", "STEP")
                     try:
-                        page.locator('button:has-text("Google")').first.click()
+                        await page.locator('button:has-text("Google")').first.click()
                     except:
                         try:
-                            page.locator('a:has-text("Google")').first.click()
+                            await page.locator('a:has-text("Google")').first.click()
                         except:
                             self.log("找不到 Google 登录按钮", "ERROR")
                             self.notify(False, "找不到 Google 登录按钮")
                             return False
 
-                    time.sleep(3)
-                    page.wait_for_load_state('networkidle', timeout=30000)
-                    self.screenshot(page, "点击Google后")
+                    await asyncio.sleep(3)
+                    await page.wait_for_load_state('networkidle', timeout=30000)
+                    self.screenshot_count += 1
+                    await page.screenshot(path=f"{self.screenshot_count:02d}_点击Google后.png")
+                    self.screenshots.append(f"{self.screenshot_count:02d}_点击Google后.png")
 
                     # Google 登录
                     if 'accounts.google.com' in page.url:
                         self.log("步骤3: Google 账号登录", "STEP")
-                        self.screenshot(page, "google_登录页")
+                        self.screenshot_count += 1
+                        await page.screenshot(path=f"{self.screenshot_count:02d}_google_登录页.png")
+                        self.screenshots.append(f"{self.screenshot_count:02d}_google_登录页.png")
 
                         # 输入邮箱
                         try:
-                            page.locator('input[type="email"]').fill(email)
-                            page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
-                            time.sleep(3)
-                            page.wait_for_load_state('networkidle', timeout=30000)
-                            self.screenshot(page, "google_输入邮箱后")
+                            await page.locator('input[type="email"]').fill(email)
+                            await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
+                            await asyncio.sleep(3)
+                            await page.wait_for_load_state('networkidle', timeout=30000)
+                            self.screenshot_count += 1
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_google_输入邮箱后.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_google_输入邮箱后.png")
                         except Exception as e:
                             self.log(f"输入邮箱失败: {e}", "ERROR")
                             self.notify(False, f"输入邮箱失败: {e}")
@@ -362,11 +381,13 @@ class ClawCloudLogin:
 
                         # 输入密码
                         try:
-                            page.locator('input[type="password"]').fill(password)
-                            page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
-                            time.sleep(3)
-                            page.wait_for_load_state('networkidle', timeout=30000)
-                            self.screenshot(page, "google_输入密码后")
+                            await page.locator('input[type="password"]').fill(password)
+                            await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
+                            await asyncio.sleep(3)
+                            await page.wait_for_load_state('networkidle', timeout=30000)
+                            self.screenshot_count += 1
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_google_输入密码后.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_google_输入密码后.png")
                         except Exception as e:
                             self.log(f"输入密码失败: {e}", "ERROR")
                             self.notify(False, f"输入密码失败: {e}")
@@ -375,14 +396,17 @@ class ClawCloudLogin:
                         # 处理两步验证（如果需要）
                         if 'challenge' in page.url or 'signin/v2/challenge' in page.url:
                             self.log(f"需要两步验证，等待 {TWO_FACTOR_WAIT} 秒...", "WARN")
-                            f_2fa = self.screenshot(page, "google_2fa")
+                            self.screenshot_count += 1
+                            f_2fa = f"{self.screenshot_count:02d}_google_2fa.png"
+                            await page.screenshot(path=f_2fa)
+                            self.screenshots.append(f_2fa)
                             self.tg.send(f"⚠️ <b>需要 Google 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
                             self.tg.send_photo(f_2fa, "Google 两步验证页面")
 
                             for i in range(TWO_FACTOR_WAIT):
-                                time.sleep(1)
+                                await asyncio.sleep(1)
                                 if i % 10 == 0:
-                                    page.reload(timeout=10000)
+                                    await page.reload(timeout=10000)
                                     if 'challenge' not in page.url:
                                         self.log("2FA 验证成功", "SUCCESS")
                                         break
@@ -397,25 +421,29 @@ class ClawCloudLogin:
                         if 'claw.cloud' in page.url and 'signin' not in page.url.lower():
                             self.log("重定向成功！", "SUCCESS")
                             break
-                        time.sleep(1)
+                        await asyncio.sleep(1)
                     else:
                         self.log("重定向超时", "ERROR")
                         self.notify(False, "重定向超时")
                         return False
 
-                    self.screenshot(page, "完成")
+                    self.screenshot_count += 1
+                    await page.screenshot(path=f"{self.screenshot_count:02d}_完成.png")
+                    self.screenshots.append(f"{self.screenshot_count:02d}_完成.png")
                     self.notify(True)
                     print('\n✅ ClawCloud 登录成功!\n')
                     return True
 
                 except Exception as e:
                     self.log(f"异常: {e}", "ERROR")
-                    self.screenshot(page, "异常")
+                    self.screenshot_count += 1
+                    await page.screenshot(path=f"{self.screenshot_count:02d}_异常.png")
+                    self.screenshots.append(f"{self.screenshot_count:02d}_异常.png")
                     self.notify(False, str(e))
                     return False
 
                 finally:
-                    browser.close()
+                    await browser.close()
 
         except ImportError:
             self.log("未安装 playwright，跳过 ClawCloud 登录", "WARN")
@@ -425,7 +453,7 @@ class ClawCloudLogin:
             self.log(f"ClawCloud 登录失败: {e}", "ERROR")
             return False
 
-    def run(self, accounts: List[Dict]) -> bool:
+    async def run(self, accounts: List[Dict]) -> bool:
         """
         批量登录 ClawCloud 账号
 
@@ -458,7 +486,7 @@ class ClawCloudLogin:
             print(f'\n[{i}/{len(accounts)}] 正在登录账号: {email}')
 
             try:
-                is_logged_in = self.login_account(email, password)
+                is_logged_in = await self.login_account(email, password)
 
                 if is_logged_in:
                     success_count += 1
@@ -474,7 +502,7 @@ class ClawCloudLogin:
             if i < len(accounts):
                 delay = random.randint(3000, 8000)
                 print(f'等待 {delay/1000:.1f} 秒后继续...\n')
-                time.sleep(delay / 1000)
+                await asyncio.sleep(delay / 1000)
 
         print('\n' + '='*50)
         print(f'ClawCloud 登录完成! 成功: {success_count}, 失败: {fail_count}')
@@ -535,7 +563,7 @@ async def main():
     # 执行 ClawCloud 登录
     if clawcloud_accounts:
         clawcloud = ClawCloudLogin(telegram)
-        clawcloud.run(clawcloud_accounts)
+        await clawcloud.run(clawcloud_accounts)
 
     print('\n' + '='*60)
     print('所有保活任务完成!')
