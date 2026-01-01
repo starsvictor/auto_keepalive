@@ -1,0 +1,43 @@
+name: Auto Keepalive
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 */7 * *'  # 每 7 天运行一次
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install Python dependencies
+        run: |
+          pip install pyppeteer aiofiles requests playwright
+          playwright install chromium --with-deps
+
+      - name: Create Serv00 accounts file
+        run: echo '${{ secrets.SERV00_ACCOUNTS_JSON }}' > accounts.json
+
+      - name: Create ClawCloud accounts file
+        run: echo '${{ secrets.CLAWCLOUD_ACCOUNTS_JSON }}' > clawcloud_accounts.json
+
+      - name: Run keepalive script
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python auto_keepalive.py

@@ -1,0 +1,18 @@
+# Claude Code 配置文件
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 截图文件
+*.png
+
+# 环境变量
+.env
