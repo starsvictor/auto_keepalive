@@ -490,7 +490,28 @@ class ClawCloudLogin:
                                     totp = pyotp.TOTP(totp_secret)
                                     code = totp.now()
                                     self.log(f"生成 TOTP 验证码: {code}", "INFO")
-                                    await page.locator('input[name="otp"]').fill(code)
+
+                                    # 尝试多个可能的输入框选择器
+                                    input_selectors = [
+                                        'input[name="app_otp"]',  # GitHub 的实际字段名
+                                        'input[name="otp"]',
+                                        'input[id="app_totp"]',
+                                        'input.js-verification-code-input-auto-submit'
+                                    ]
+
+                                    input_filled = False
+                                    for selector in input_selectors:
+                                        try:
+                                            await page.locator(selector).fill(code, timeout=5000)
+                                            self.log(f"使用选择器 {selector} 填充验证码成功", "INFO")
+                                            input_filled = True
+                                            break
+                                        except:
+                                            continue
+
+                                    if not input_filled:
+                                        raise Exception("无法找到 TOTP 输入框")
+
                                     await page.locator('button[type="submit"]').click()
                                     await asyncio.sleep(3)
                                     await page.wait_for_load_state('networkidle', timeout=30000)
