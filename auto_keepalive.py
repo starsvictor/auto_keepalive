@@ -572,7 +572,6 @@ class ClawCloudLogin:
                                             # 检查是否验证成功
                                             if 'two-factor' not in page.url and 'two_factor' not in page.url:
                                                 self.log("TOTP 验证成功！", "SUCCESS")
-                                                self.tg.send("✅ <b>TOTP 两步验证成功</b>")
                                                 break
                                             else:
                                                 # 检查是否有错误提示
