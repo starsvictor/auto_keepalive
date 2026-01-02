@@ -446,7 +446,7 @@ class ClawCloudLogin:
                             self.screenshots.append(f_2fa)
 
                             # 尝试 TOTP 自动填充
-                            totp_secret = os.getenv('GITHUB_TOTP_SECRET')
+                            totp_secret = os.getenv('TOTP_SECRET')
                             if totp_secret:
                                 try:
                                     import pyotp

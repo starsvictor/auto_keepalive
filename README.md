@@ -49,7 +49,7 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 | `CLAWCLOUD_ACCOUNTS_JSON` | ClawCloud 账号配置（JSON 格式） | ClawCloud 必需 |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 可选（推荐） |
 | `TELEGRAM_CHAT_ID` | Telegram Chat ID | 可选（推荐） |
-| `GITHUB_TOTP_SECRET` | GitHub TOTP 密钥（用于自动化两步验证） | 可选 |
+| `TOTP_SECRET` | GitHub TOTP 密钥（用于自动化两步验证） | 可选 |
 
 #### 配置示例
 
@@ -109,7 +109,7 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 3. 复制显示的密钥（格式如：`JBSWY3DPEHPK3PXP`）
 
 **步骤 2：配置 Secret**
-1. 在 GitHub Secrets 中添加 `GITHUB_TOTP_SECRET`
+1. 在 GitHub Secrets 中添加 `TOTP_SECRET`
 2. 值为上一步复制的密钥
 
 **支持的验证方式：**
