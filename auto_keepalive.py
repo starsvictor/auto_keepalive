@@ -187,35 +187,42 @@ class Serv00Login:
             success_indicators = ['dashboard', 'panel', 'account', 'welcome', 'strona główna', 'logged', 'profile']
             error_indicators = ['error', 'błąd', 'invalid', 'failed', 'unauthorized', 'forbidden']
 
-            # 判断登录是否成功
+            # 判断登录是否成功（优先级从高到低）
             is_logged_in = False
 
-            # 方法1: 检查登出按钮
+            # 方法1: 检查登出按钮（最可靠的判断方式）
             if logout_button:
                 is_logged_in = True
                 print(f'✅ 检测到登出按钮，登录成功')
+                return is_logged_in  # 直接返回，不再检查错误信息
 
             # 方法2: 检查 URL 中的成功指标
-            elif any(indicator in current_url.lower() for indicator in success_indicators):
+            if any(indicator in current_url.lower() for indicator in success_indicators):
                 is_logged_in = True
                 print(f'✅ URL 包含成功指标，登录成功: {current_url}')
+                return is_logged_in
 
             # 方法3: 检查页面标题
-            elif any(indicator in page_title.lower() for indicator in success_indicators):
+            if any(indicator in page_title.lower() for indicator in success_indicators):
                 is_logged_in = True
                 print(f'✅ 页面标题包含成功指标，登录成功: {page_title}')
+                return is_logged_in
 
             # 方法4: 检查页面内容
-            elif any(indicator in page_content.lower() for indicator in success_indicators):
+            if any(indicator in page_content.lower() for indicator in success_indicators):
                 is_logged_in = True
                 print(f'✅ 页面内容包含成功指标，登录成功')
+                return is_logged_in
 
-            # 检查是否有错误信息
+            # 方法5: 检查是否有错误信息（只有在没有成功指标时才检查）
             if any(indicator in page_content.lower() for indicator in error_indicators):
                 is_logged_in = False
                 print(f'❌ 页面包含错误信息，登录失败')
+                return is_logged_in
 
-            return is_logged_in
+            # 如果没有明确的成功或失败指标，返回 False
+            print(f'⚠️ 无法确定登录状态，URL: {current_url}')
+            return False
 
         except Exception as e:
             print(f'账号 {username} 登录时出现错误: {e}')
