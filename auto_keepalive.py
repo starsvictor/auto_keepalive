@@ -495,12 +495,12 @@ class ClawCloudLogin:
                             await page.screenshot(path=f_2fa)
                             self.screenshots.append(f_2fa)
 
-                            # 尝试 TOTP 自动填充
+                            # 尝试 MFA 自动填充
                             if mfasecret:
                                 try:
                                     import pyotp
 
-                                    self.log(f"检测到 TOTP 密钥配置", "INFO")
+                                    self.log(f"检测到 MFA 密钥配置", "INFO")
 
                                     # 清理密钥（移除空格和换行符）
                                     processed_secret = mfasecret.strip().replace(' ', '').replace('\n', '')
@@ -510,7 +510,7 @@ class ClawCloudLogin:
                                     max_attempts = 3
                                     for attempt in range(1, max_attempts + 1):
                                         try:
-                                            # 生成 TOTP 验证码
+                                            # 生成 MFA 验证码
                                             totp = pyotp.TOTP(processed_secret)
                                             current_time = time.time()
                                             code = totp.now()
@@ -537,7 +537,7 @@ class ClawCloudLogin:
                                                     continue
 
                                             if not input_element:
-                                                raise Exception("无法找到 TOTP 输入框")
+                                                raise Exception("无法找到 MFA 输入框")
 
                                             # 提交验证码 - 尝试多种按钮选择器
                                             # 注意：某些 GitHub 2FA 页面会在输入完成后自动提交，无需点击按钮
@@ -571,7 +571,7 @@ class ClawCloudLogin:
 
                                             # 检查是否验证成功
                                             if 'two-factor' not in page.url and 'two_factor' not in page.url:
-                                                self.log("TOTP 验证成功！", "SUCCESS")
+                                                self.log("MFA 验证成功！", "SUCCESS")
                                                 break
                                             else:
                                                 # 检查是否有错误提示
@@ -589,11 +589,11 @@ class ClawCloudLogin:
                                                         await page.reload(timeout=10000)
                                                         await asyncio.sleep(2)
                                                     else:
-                                                        self.log(f"已尝试 {max_attempts} 次，TOTP 验证失败", "ERROR")
-                                                        raise Exception(f"TOTP 验证失败（已尝试 {max_attempts} 次）")
+                                                        self.log(f"已尝试 {max_attempts} 次，MFA 验证失败", "ERROR")
+                                                        raise Exception(f"MFA 验证失败（已尝试 {max_attempts} 次）")
                                                 else:
                                                     self.log("页面仍在两步验证，但未检测到错误", "WARN")
-                                                    raise Exception("TOTP 验证状态未知")
+                                                    raise Exception("MFA 验证状态未知")
 
                                         except Exception as e:
                                             if attempt == max_attempts:
@@ -606,13 +606,13 @@ class ClawCloudLogin:
                                     self.log("未安装 pyotp，需要手动验证", "WARN")
                                     raise Exception("pyotp not installed")
                                 except Exception as e:
-                                    self.log(f"TOTP 自动填充失败: {e}，回退到手动输入", "WARN")
+                                    self.log(f"MFA 自动填充失败: {e}，回退到手动输入", "WARN")
                                     # 截图当前状态
                                     self.screenshot_count += 1
                                     await page.screenshot(path=f"{self.screenshot_count:02d}_totp_failed.png")
                                     self.screenshots.append(f"{self.screenshot_count:02d}_totp_failed.png")
 
-                            # 如果 TOTP 失败或未配置，等待手动输入
+                            # 如果 MFA 失败或未配置，等待手动输入
                             if 'two-factor' in page.url or 'two_factor' in page.url:
                                 self.tg.send(f"⚠️ <b>需要 GitHub 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
                                 self.tg.send_photo(f_2fa, "GitHub 两步验证页面")
