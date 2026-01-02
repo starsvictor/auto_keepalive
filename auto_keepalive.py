@@ -471,62 +471,104 @@ class ClawCloudLogin:
                                     import base64
 
                                     self.log(f"检测到 TOTP 密钥配置", "INFO")
-                                    original_secret = totp_secret
 
-                                    # 尝试处理不同格式的密钥
-                                    try:
-                                        # 如果包含 + 或 / 或 =，可能是 Base64 格式，尝试转换
-                                        if '+' in totp_secret or '/' in totp_secret or '=' in totp_secret:
-                                            self.log(f"检测到 Base64 格式密钥，尝试转换为 Base32", "INFO")
-                                            # 解码 Base64
-                                            decoded = base64.b64decode(totp_secret)
-                                            # 转换为 Base32
-                                            totp_secret = base64.b32encode(decoded).decode('utf-8').rstrip('=')
-                                            self.log(f"密钥转换成功", "INFO")
-                                    except Exception as e:
-                                        self.log(f"密钥格式转换失败: {e}，使用原始密钥", "WARN")
-                                        totp_secret = original_secret
+                                    # 处理密钥格式
+                                    processed_secret = totp_secret.strip()
 
-                                    totp = pyotp.TOTP(totp_secret)
-                                    code = totp.now()
-                                    self.log(f"生成 TOTP 验证码: {code}", "INFO")
-
-                                    # 尝试多个可能的输入框选择器
-                                    input_selectors = [
-                                        'input[name="app_otp"]',  # GitHub 的实际字段名
-                                        'input[name="otp"]',
-                                        'input[id="app_totp"]',
-                                        'input.js-verification-code-input-auto-submit'
-                                    ]
-
-                                    input_filled = False
-                                    for selector in input_selectors:
+                                    # 检测并转换 Base64 格式
+                                    if '+' in processed_secret or '/' in processed_secret or '=' in processed_secret:
+                                        self.log(f"检测到 Base64 格式密钥，尝试转换为 Base32", "INFO")
                                         try:
-                                            await page.locator(selector).fill(code, timeout=5000)
-                                            self.log(f"使用选择器 {selector} 填充验证码成功", "INFO")
-                                            input_filled = True
-                                            break
-                                        except:
-                                            continue
+                                            decoded = base64.b64decode(processed_secret)
+                                            processed_secret = base64.b32encode(decoded).decode('utf-8').rstrip('=')
+                                            self.log(f"Base64 → Base32 转换成功", "INFO")
+                                        except Exception as e:
+                                            self.log(f"Base64 转换失败: {e}，尝试直接使用", "WARN")
+                                            processed_secret = totp_secret.strip()
 
-                                    if not input_filled:
-                                        raise Exception("无法找到 TOTP 输入框")
+                                    # 尝试多次验证（最多3次）
+                                    max_attempts = 3
+                                    for attempt in range(1, max_attempts + 1):
+                                        try:
+                                            # 生成 TOTP 验证码
+                                            totp = pyotp.TOTP(processed_secret)
+                                            current_time = time.time()
+                                            code = totp.now()
 
-                                    await page.locator('button[type="submit"]').click()
-                                    await asyncio.sleep(3)
-                                    await page.wait_for_load_state('networkidle', timeout=30000)
+                                            self.log(f"第 {attempt} 次尝试 - 生成验证码: {code} (时间戳: {int(current_time)})", "INFO")
 
-                                    if 'two-factor' not in page.url and 'two_factor' not in page.url:
-                                        self.log("TOTP 验证成功", "SUCCESS")
-                                        self.tg.send("✅ <b>TOTP 两步验证成功</b>")
-                                    else:
-                                        self.log("TOTP 验证失败，等待手动输入", "WARN")
-                                        raise Exception("TOTP failed")
+                                            # 清空输入框并填充验证码
+                                            input_selectors = [
+                                                'input[name="app_otp"]',
+                                                'input[name="otp"]',
+                                                'input[id="app_totp"]',
+                                                'input.js-verification-code-input-auto-submit'
+                                            ]
+
+                                            input_element = None
+                                            for selector in input_selectors:
+                                                try:
+                                                    input_element = page.locator(selector).first
+                                                    await input_element.clear(timeout=3000)
+                                                    await input_element.fill(code, timeout=3000)
+                                                    self.log(f"使用选择器 {selector} 填充成功", "INFO")
+                                                    break
+                                                except:
+                                                    continue
+
+                                            if not input_element:
+                                                raise Exception("无法找到 TOTP 输入框")
+
+                                            # 提交验证码
+                                            await page.locator('button[type="submit"]').click()
+                                            self.log(f"已提交验证码，等待验证结果...", "INFO")
+
+                                            # 等待页面响应
+                                            await asyncio.sleep(3)
+
+                                            # 检查是否验证成功
+                                            if 'two-factor' not in page.url and 'two_factor' not in page.url:
+                                                self.log("TOTP 验证成功！", "SUCCESS")
+                                                self.tg.send("✅ <b>TOTP 两步验证成功</b>")
+                                                break
+                                            else:
+                                                # 检查是否有错误提示
+                                                error_text = await page.text_content('body')
+                                                if 'failed' in error_text.lower() or 'incorrect' in error_text.lower():
+                                                    self.log(f"验证码 {code} 被拒绝", "WARN")
+
+                                                    if attempt < max_attempts:
+                                                        # 等待下一个时间窗口（30秒）
+                                                        remaining = 30 - (int(current_time) % 30)
+                                                        self.log(f"等待 {remaining} 秒进入下一个时间窗口...", "INFO")
+                                                        await asyncio.sleep(remaining + 1)
+
+                                                        # 刷新页面重试
+                                                        await page.reload(timeout=10000)
+                                                        await asyncio.sleep(2)
+                                                    else:
+                                                        self.log(f"已尝试 {max_attempts} 次，TOTP 验证失败", "ERROR")
+                                                        raise Exception(f"TOTP 验证失败（已尝试 {max_attempts} 次）")
+                                                else:
+                                                    self.log("页面仍在两步验证，但未检测到错误", "WARN")
+                                                    raise Exception("TOTP 验证状态未知")
+
+                                        except Exception as e:
+                                            if attempt == max_attempts:
+                                                raise
+                                            else:
+                                                self.log(f"第 {attempt} 次尝试失败: {e}", "WARN")
+                                                continue
+
                                 except ImportError:
                                     self.log("未安装 pyotp，需要手动验证", "WARN")
                                     raise Exception("pyotp not installed")
                                 except Exception as e:
-                                    self.log(f"TOTP 自动填充失败: {e}，等待手动输入", "WARN")
+                                    self.log(f"TOTP 自动填充失败: {e}，回退到手动输入", "WARN")
+                                    # 截图当前状态
+                                    self.screenshot_count += 1
+                                    await page.screenshot(path=f"{self.screenshot_count:02d}_totp_failed.png")
+                                    self.screenshots.append(f"{self.screenshot_count:02d}_totp_failed.png")
 
                             # 如果 TOTP 失败或未配置，等待手动输入
                             if 'two-factor' in page.url or 'two_factor' in page.url:
