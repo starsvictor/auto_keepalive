@@ -442,9 +442,38 @@ class ClawCloudLogin:
 
                         # 输入用户名和密码
                         try:
-                            await page.locator('input[name="login"]').fill(username)
-                            await page.locator('input[name="password"]').fill(password)
-                            await page.locator('input[type="submit"][value="Sign in"]').click()
+                            # 等待登录表单加载完成
+                            await page.wait_for_selector('input[name="login"]', timeout=10000)
+                            await page.wait_for_selector('input[name="password"]', timeout=10000)
+
+                            # 填充用户名
+                            username_input = page.locator('input[name="login"]').first
+                            await username_input.clear()
+                            await username_input.fill(username)
+                            self.log(f"已填充用户名: {username}", "INFO")
+
+                            # 等待一下确保用户名填充完成
+                            await asyncio.sleep(1)
+
+                            # 填充密码
+                            password_input = page.locator('input[name="password"]').first
+                            await password_input.clear()
+                            await password_input.fill(password)
+                            self.log(f"已填充密码（长度: {len(password)} 字符）", "INFO")
+
+                            # 截图确认填充状态
+                            self.screenshot_count += 1
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_填充完成.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_填充完成.png")
+
+                            # 等待一下确保密码填充完成
+                            await asyncio.sleep(1)
+
+                            # 点击登录按钮
+                            submit_btn = page.locator('input[type="submit"][value="Sign in"]').first
+                            await submit_btn.click()
+                            self.log("已点击登录按钮", "INFO")
+
                             await asyncio.sleep(3)
                             await page.wait_for_load_state('networkidle', timeout=30000)
                             self.screenshot_count += 1
@@ -452,6 +481,10 @@ class ClawCloudLogin:
                             self.screenshots.append(f"{self.screenshot_count:02d}_github_登录后.png")
                         except Exception as e:
                             self.log(f"GitHub 登录失败: {e}", "ERROR")
+                            # 截图当前状态
+                            self.screenshot_count += 1
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_登录失败.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_登录失败.png")
                             self.notify(username, False, f"GitHub 登录失败: {e}")
                             return False
 
