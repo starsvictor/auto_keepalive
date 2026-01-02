@@ -139,10 +139,13 @@ class Serv00Login:
             await page.type('#id_username', username)
             await page.type('#id_password', password)
 
-            # 等待登录按钮可见并点击
-            # 尝试多种选择器以确保找到按钮
+            # 等待表单加载完成
+            await asyncio.sleep(1)
+
+            # 尝试新的登录按钮选择器（优先使用 data-login-form 属性）
             login_button = None
             selectors = [
+                'form[data-login-form] button[type="submit"]',  # 新网页结构
                 'button[type="submit"]',
                 'button.button--primary',
                 'input[type="submit"]',
@@ -155,6 +158,7 @@ class Serv00Login:
                     if login_button:
                         # 等待按钮可见
                         await page.waitForSelector(selector, {'visible': True, 'timeout': 5000})
+                        print(f'找到登录按钮: {selector}')
                         break
                 except:
                     continue
@@ -162,17 +166,54 @@ class Serv00Login:
             if not login_button:
                 raise Exception('无法找到登录按钮')
 
-            # 使用 JavaScript 点击按钮（更可靠）
-            await page.evaluate('(button) => button.click()', login_button)
+            # 使用 Promise.all 并发执行点击和等待跳转（更稳定）
+            await asyncio.gather(
+                page.waitForNavigation({'waitUntil': 'domcontentloaded'}),
+                page.evaluate('(button) => button.click()', login_button)
+            )
 
-            # 等待页面跳转
-            await page.waitForNavigation()
+            # 等待页面加载完成
+            await asyncio.sleep(2)
 
-            # 判断是否登录成功
-            is_logged_in = await page.evaluate('''() => {
-                const logoutButton = document.querySelector('a[href="/logout/"]');
-                return logoutButton !== null;
-            }''')
+            # 判断是否登录成功（多重判断）
+            current_url = page.url or ''
+            page_title = await page.title() or ''
+
+            # 检查登出按钮是否存在
+            logout_button = await page.querySelector('a[href="/logout/"]')
+
+            # 检查页面内容中的成功指标
+            page_content = await page.content() or ''
+            success_indicators = ['dashboard', 'panel', 'account', 'welcome', 'strona główna', 'logged', 'profile']
+            error_indicators = ['error', 'błąd', 'invalid', 'failed', 'unauthorized', 'forbidden']
+
+            # 判断登录是否成功
+            is_logged_in = False
+
+            # 方法1: 检查登出按钮
+            if logout_button:
+                is_logged_in = True
+                print(f'✅ 检测到登出按钮，登录成功')
+
+            # 方法2: 检查 URL 中的成功指标
+            elif any(indicator in current_url.lower() for indicator in success_indicators):
+                is_logged_in = True
+                print(f'✅ URL 包含成功指标，登录成功: {current_url}')
+
+            # 方法3: 检查页面标题
+            elif any(indicator in page_title.lower() for indicator in success_indicators):
+                is_logged_in = True
+                print(f'✅ 页面标题包含成功指标，登录成功: {page_title}')
+
+            # 方法4: 检查页面内容
+            elif any(indicator in page_content.lower() for indicator in success_indicators):
+                is_logged_in = True
+                print(f'✅ 页面内容包含成功指标，登录成功')
+
+            # 检查是否有错误信息
+            if any(indicator in page_content.lower() for indicator in error_indicators):
+                is_logged_in = False
+                print(f'❌ 页面包含错误信息，登录失败')
 
             return is_logged_in
 
