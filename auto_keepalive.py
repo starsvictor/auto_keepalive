@@ -130,14 +130,15 @@ class Serv00Login:
             url = f'https://panel{panelnum}.serv00.com/login/?next=/'
             await page.goto(url)
 
-            # 清空用户名输入框
-            username_input = await page.querySelector('#id_username')
-            if username_input:
-                await page.evaluate('(input) => input.value = ""', username_input)
+            # 等待登录表单加载
+            await page.waitForSelector('#id_username', {'visible': True, 'timeout': 10000})
+            await page.waitForSelector('#id_password', {'visible': True, 'timeout': 10000})
 
-            # 输入账号和密码
-            await page.type('#id_username', username)
-            await page.type('#id_password', password)
+            # 清空并输入账号和密码（使用 evaluate 直接设置 value，更可靠）
+            await page.evaluate(f'''() => {{
+                document.querySelector('#id_username').value = '{username}';
+                document.querySelector('#id_password').value = '{password}';
+            }}''')
 
             # 等待表单加载完成
             await asyncio.sleep(1)
