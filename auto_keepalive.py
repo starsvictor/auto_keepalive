@@ -245,7 +245,8 @@ class Serv00Login:
         print('开始 Serv00/CT8 账号登录')
         print('='*50 + '\n')
 
-        self.message = '<b>Serv00/CT8 自动登录</b>\n\n'
+        success_accounts = []
+        failed_accounts = []
 
         for account in accounts:
             username = account['username']
@@ -256,15 +257,11 @@ class Serv00Login:
             is_logged_in = await self.login_account(username, password, panelnum)
 
             if is_logged_in:
-                now_utc = format_to_iso(datetime.utcnow())
-                now_beijing = format_to_iso(datetime.utcnow() + timedelta(hours=8))
-                success_msg = f'✅ 账号 {username} 于北京时间 {now_beijing}(UTC {now_utc})登录成功!'
-                self.message += success_msg + '\n'
-                print(success_msg)
+                success_accounts.append(f'{username} (panel{panelnum})')
+                print(f'✅ 账号 {username} 登录成功')
             else:
-                fail_msg = f'❌ 账号 {username} 登录失败，请检查账号和密码'
-                self.message += fail_msg + '\n'
-                print(fail_msg)
+                failed_accounts.append(f'{username} (panel{panelnum})')
+                print(f'❌ 账号 {username} 登录失败')
 
             # 随机延时 1-8 秒
             delay = random.randint(1000, 8000)
@@ -276,13 +273,30 @@ class Serv00Login:
             await self.browser.close()
             self.browser = None
 
-        self.message += '\n所有 Serv00 账号登录完成!'
         print('='*50)
         print('Serv00 登录完成!')
         print('='*50 + '\n')
 
+        # 构建简洁的通知消息
+        now_time = format_to_iso(datetime.utcnow() + timedelta(hours=8))
+        message = f'<b>🔐 Serv00/CT8 自动登录</b>\n\n'
+        message += f'<b>时间:</b> {now_time}\n'
+        message += f'<b>总计:</b> {len(accounts)} 个账号\n'
+        message += f'<b>成功:</b> {len(success_accounts)} ✅\n'
+        message += f'<b>失败:</b> {len(failed_accounts)} ❌\n'
+
+        if success_accounts:
+            message += f'\n<b>成功账号:</b>\n'
+            for acc in success_accounts:
+                message += f'  • {acc}\n'
+
+        if failed_accounts:
+            message += f'\n<b>失败账号:</b>\n'
+            for acc in failed_accounts:
+                message += f'  • {acc}\n'
+
         # 发送通知
-        self.tg.send(self.message)
+        self.tg.send(message)
 
 
 # ==================== ClawCloud 登录 ====================
@@ -321,31 +335,35 @@ class ClawCloudLogin:
             pass
         return filename
 
-    def notify(self, email: str, success: bool, error: str = ""):
+    def notify(self, username: str, success: bool, error: str = ""):
         """发送通知"""
         if not self.tg.enabled:
             return
 
-        msg = f"""<b>ClawCloud 自动登录</b>
+        status_icon = "✅" if success else "❌"
+        status_text = "成功" if success else "失败"
 
-<b>状态:</b> {"✅ 成功" if success else "❌ 失败"}
-<b>用户:</b> {email}
+        msg = f"""<b>🌐 ClawCloud 自动登录</b>
+
+<b>状态:</b> {status_icon} {status_text}
+<b>账号:</b> {username}
 <b>时间:</b> {time.strftime('%Y-%m-%d %H:%M:%S')}"""
 
         if error:
             msg += f"\n<b>错误:</b> {error}"
 
-        msg += "\n\n<b>日志:</b>\n" + "\n".join(self.logs[-6:])
+        if not success and self.logs:
+            msg += "\n\n<b>关键日志:</b>\n" + "\n".join(self.logs[-3:])
 
         self.tg.send(msg)
 
         # 发送截图
         if self.screenshots:
             if not success:
-                for s in self.screenshots[-3:]:
-                    self.tg.send_photo(s, s)
+                # 失败时发送最后一张截图
+                self.tg.send_photo(self.screenshots[-1], "登录失败截图")
             else:
-                self.tg.send_photo(self.screenshots[-1], "登录完成")
+                self.tg.send_photo(self.screenshots[-1], "登录成功")
 
     async def login_account(self, username: str, password: str) -> bool:
         """
@@ -452,6 +470,9 @@ class ClawCloudLogin:
                                     import pyotp
                                     import base64
 
+                                    self.log(f"检测到 TOTP 密钥配置", "INFO")
+                                    original_secret = totp_secret
+
                                     # 尝试处理不同格式的密钥
                                     try:
                                         # 如果包含 + 或 / 或 =，可能是 Base64 格式，尝试转换
@@ -460,15 +481,15 @@ class ClawCloudLogin:
                                             # 解码 Base64
                                             decoded = base64.b64decode(totp_secret)
                                             # 转换为 Base32
-                                            import base64
                                             totp_secret = base64.b32encode(decoded).decode('utf-8').rstrip('=')
                                             self.log(f"密钥转换成功", "INFO")
                                     except Exception as e:
                                         self.log(f"密钥格式转换失败: {e}，使用原始密钥", "WARN")
+                                        totp_secret = original_secret
 
                                     totp = pyotp.TOTP(totp_secret)
                                     code = totp.now()
-                                    self.log(f"使用 TOTP 自动填充验证码", "INFO")
+                                    self.log(f"生成 TOTP 验证码: {code}", "INFO")
                                     await page.locator('input[name="otp"]').fill(code)
                                     await page.locator('button[type="submit"]').click()
                                     await asyncio.sleep(3)
