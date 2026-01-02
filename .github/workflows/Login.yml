@@ -39,4 +39,5 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TOTP_SECRET: ${{ secrets.TOTP_SECRET }}
         run: python auto_keepalive.py
