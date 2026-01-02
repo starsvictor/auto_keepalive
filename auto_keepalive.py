@@ -541,8 +541,29 @@ class ClawCloudLogin:
                                             if not input_element:
                                                 raise Exception("无法找到 TOTP 输入框")
 
-                                            # 提交验证码
-                                            await page.locator('button[type="submit"]').click()
+                                            # 提交验证码 - 尝试多种按钮选择器
+                                            submit_selectors = [
+                                                'button:has-text("Verify")',  # GitHub 2FA 页面的 Verify 按钮
+                                                'button[type="submit"]',
+                                                'input[type="submit"]',
+                                                'button.btn-primary'
+                                            ]
+
+                                            submitted = False
+                                            for selector in submit_selectors:
+                                                try:
+                                                    submit_btn = page.locator(selector).first
+                                                    if await submit_btn.count() > 0:
+                                                        await submit_btn.click(timeout=5000)
+                                                        self.log(f"使用选择器 {selector} 点击提交按钮成功", "INFO")
+                                                        submitted = True
+                                                        break
+                                                except:
+                                                    continue
+
+                                            if not submitted:
+                                                raise Exception("无法找到提交按钮")
+
                                             self.log(f"已提交验证码，等待验证结果...", "INFO")
 
                                             # 等待页面响应
