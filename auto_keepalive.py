@@ -440,7 +440,11 @@ class ClawCloudLogin:
 
                         # 输入密码
                         try:
-                            await page.locator('input[type="password"]').fill(password, timeout=60000)
+                            # 等待密码输入框出现并可见
+                            await page.wait_for_selector('input[type="password"]', state='visible', timeout=60000)
+                            await asyncio.sleep(2)  # 额外等待确保页面完全加载
+                            await page.locator('input[type="password"]').fill(password, timeout=30000)
+                            await asyncio.sleep(1)
                             await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
                             await asyncio.sleep(3)
                             await page.wait_for_load_state('networkidle', timeout=30000)
