@@ -347,13 +347,13 @@ class ClawCloudLogin:
             else:
                 self.tg.send_photo(self.screenshots[-1], "登录完成")
 
-    async def login_account(self, email: str, password: str) -> bool:
+    async def login_account(self, username: str, password: str) -> bool:
         """
         登录单个 ClawCloud 账号
 
         Args:
-            email: Google 邮箱
-            password: Google 密码
+            username: GitHub 用户名
+            password: GitHub 密码
 
         Returns:
             bool: 登录是否成功
@@ -362,7 +362,7 @@ class ClawCloudLogin:
         self.screenshots = []
         self.screenshot_count = 0
 
-        self.log(f'正在登录账号: {email}')
+        self.log(f'正在登录账号: {username}')
 
         try:
             from playwright.async_api import async_playwright
@@ -390,92 +390,95 @@ class ClawCloudLogin:
 
                     if 'signin' not in page.url.lower():
                         self.log("已登录！", "SUCCESS")
-                        self.notify(email, True)
+                        self.notify(username, True)
                         print('\n✅ ClawCloud 登录成功!\n')
                         return True
 
-                    # 点击 Google 登录
-                    self.log("步骤2: 点击 Google 登录", "STEP")
+                    # 点击 GitHub 登录
+                    self.log("步骤2: 点击 GitHub 登录", "STEP")
                     try:
-                        # 新的页面结构使用 chakra-button 类
-                        await page.locator('button.chakra-button:has-text("Google")').first.click()
+                        await page.locator('button.chakra-button:has-text("GitHub")').first.click()
                     except:
                         try:
-                            # 备用选择器
-                            await page.locator('button:has-text("Google")').first.click()
+                            await page.locator('button:has-text("GitHub")').first.click()
                         except:
                             try:
-                                await page.locator('a:has-text("Google")').first.click()
+                                await page.locator('a:has-text("GitHub")').first.click()
                             except:
-                                self.log("找不到 Google 登录按钮", "ERROR")
-                                self.notify(email, False, "找不到 Google 登录按钮")
+                                self.log("找不到 GitHub 登录按钮", "ERROR")
+                                self.notify(username, False, "找不到 GitHub 登录按钮")
                                 return False
 
                     await asyncio.sleep(3)
                     await page.wait_for_load_state('networkidle', timeout=30000)
                     self.screenshot_count += 1
-                    await page.screenshot(path=f"{self.screenshot_count:02d}_点击Google后.png")
-                    self.screenshots.append(f"{self.screenshot_count:02d}_点击Google后.png")
+                    await page.screenshot(path=f"{self.screenshot_count:02d}_点击GitHub后.png")
+                    self.screenshots.append(f"{self.screenshot_count:02d}_点击GitHub后.png")
 
-                    # Google 登录
-                    if 'accounts.google.com' in page.url:
-                        self.log("步骤3: Google 账号登录", "STEP")
+                    # GitHub 登录
+                    if 'github.com' in page.url:
+                        self.log("步骤3: GitHub 账号登录", "STEP")
                         self.screenshot_count += 1
-                        await page.screenshot(path=f"{self.screenshot_count:02d}_google_登录页.png")
-                        self.screenshots.append(f"{self.screenshot_count:02d}_google_登录页.png")
+                        await page.screenshot(path=f"{self.screenshot_count:02d}_github_登录页.png")
+                        self.screenshots.append(f"{self.screenshot_count:02d}_github_登录页.png")
 
-                        # 输入邮箱
+                        # 输入用户名和密码
                         try:
-                            await page.locator('input[type="email"]').fill(email)
-                            await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
+                            await page.locator('input[name="login"]').fill(username)
+                            await page.locator('input[name="password"]').fill(password)
+                            await page.locator('input[type="submit"][value="Sign in"]').click()
                             await asyncio.sleep(3)
                             await page.wait_for_load_state('networkidle', timeout=30000)
                             self.screenshot_count += 1
-                            await page.screenshot(path=f"{self.screenshot_count:02d}_google_输入邮箱后.png")
-                            self.screenshots.append(f"{self.screenshot_count:02d}_google_输入邮箱后.png")
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_github_登录后.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_github_登录后.png")
                         except Exception as e:
-                            self.log(f"输入邮箱失败: {e}", "ERROR")
-                            self.notify(email, False, f"输入邮箱失败: {e}")
-                            return False
-
-                        # 输入密码
-                        try:
-                            # 等待密码输入框出现并可见
-                            await page.wait_for_selector('input[type="password"]', state='visible', timeout=60000)
-                            await asyncio.sleep(2)  # 额外等待确保页面完全加载
-                            await page.locator('input[type="password"]').fill(password, timeout=30000)
-                            await asyncio.sleep(1)
-                            await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
-                            await asyncio.sleep(3)
-                            await page.wait_for_load_state('networkidle', timeout=30000)
-                            self.screenshot_count += 1
-                            await page.screenshot(path=f"{self.screenshot_count:02d}_google_输入密码后.png")
-                            self.screenshots.append(f"{self.screenshot_count:02d}_google_输入密码后.png")
-                        except Exception as e:
-                            self.log(f"输入密码失败: {e}", "ERROR")
-                            self.notify(email, False, f"输入密码失败: {e}")
+                            self.log(f"GitHub 登录失败: {e}", "ERROR")
+                            self.notify(username, False, f"GitHub 登录失败: {e}")
                             return False
 
                         # 处理两步验证（如果需要）
-                        if 'challenge' in page.url or 'signin/v2/challenge' in page.url:
+                        if 'sessions/two-factor' in page.url or 'two_factor' in page.url:
                             self.log(f"需要两步验证，等待 {TWO_FACTOR_WAIT} 秒...", "WARN")
                             self.screenshot_count += 1
-                            f_2fa = f"{self.screenshot_count:02d}_google_2fa.png"
+                            f_2fa = f"{self.screenshot_count:02d}_github_2fa.png"
                             await page.screenshot(path=f_2fa)
                             self.screenshots.append(f_2fa)
-                            self.tg.send(f"⚠️ <b>需要 Google 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
-                            self.tg.send_photo(f_2fa, "Google 两步验证页面")
+                            self.tg.send(f"⚠️ <b>需要 GitHub 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
+                            self.tg.send_photo(f_2fa, "GitHub 两步验证页面")
 
                             for i in range(TWO_FACTOR_WAIT):
                                 await asyncio.sleep(1)
                                 if i % 10 == 0:
                                     await page.reload(timeout=10000)
-                                    if 'challenge' not in page.url:
+                                    if 'two-factor' not in page.url and 'two_factor' not in page.url:
                                         self.log("2FA 验证成功", "SUCCESS")
                                         break
                             else:
                                 self.log("2FA 验证超时", "ERROR")
-                                self.notify(email, False, "2FA 验证超时")
+                                self.notify(username, False, "2FA 验证超时")
+                                return False
+
+                        # 处理设备验证（如果需要）
+                        if 'sessions/verified-device' in page.url:
+                            self.log(f"需要设备验证，等待 {DEVICE_VERIFY_WAIT} 秒...", "WARN")
+                            self.screenshot_count += 1
+                            f_device = f"{self.screenshot_count:02d}_github_device.png"
+                            await page.screenshot(path=f_device)
+                            self.screenshots.append(f_device)
+                            self.tg.send(f"⚠️ <b>需要 GitHub 设备验证</b>\n\n请在 {DEVICE_VERIFY_WAIT} 秒内完成")
+                            self.tg.send_photo(f_device, "GitHub 设备验证页面")
+
+                            for i in range(DEVICE_VERIFY_WAIT):
+                                await asyncio.sleep(1)
+                                if i % 10 == 0:
+                                    await page.reload(timeout=10000)
+                                    if 'verified-device' not in page.url:
+                                        self.log("设备验证成功", "SUCCESS")
+                                        break
+                            else:
+                                self.log("设备验证超时", "ERROR")
+                                self.notify(username, False, "设备验证超时")
                                 return False
 
                     # 等待重定向
@@ -487,13 +490,13 @@ class ClawCloudLogin:
                         await asyncio.sleep(1)
                     else:
                         self.log("重定向超时", "ERROR")
-                        self.notify(email, False, "重定向超时")
+                        self.notify(username, False, "重定向超时")
                         return False
 
                     self.screenshot_count += 1
                     await page.screenshot(path=f"{self.screenshot_count:02d}_完成.png")
                     self.screenshots.append(f"{self.screenshot_count:02d}_完成.png")
-                    self.notify(email, True)
+                    self.notify(username, True)
                     print('\n✅ ClawCloud 登录成功!\n')
                     return True
 
@@ -502,7 +505,7 @@ class ClawCloudLogin:
                     self.screenshot_count += 1
                     await page.screenshot(path=f"{self.screenshot_count:02d}_异常.png")
                     self.screenshots.append(f"{self.screenshot_count:02d}_异常.png")
-                    self.notify(email, False, str(e))
+                    self.notify(username, False, str(e))
                     return False
 
                 finally:
@@ -521,7 +524,7 @@ class ClawCloudLogin:
         批量登录 ClawCloud 账号
 
         Args:
-            accounts: 账号列表，格式 [{"email": "...", "password": "..."}]
+            accounts: 账号列表，格式 [{"username": "...", "password": "..."}]
 
         Returns:
             bool: 是否至少有一个账号登录成功
@@ -538,28 +541,28 @@ class ClawCloudLogin:
         fail_count = 0
 
         for i, account in enumerate(accounts, 1):
-            email = account.get('email')
+            username = account.get('username')
             password = account.get('password')
 
-            if not email or not password:
+            if not username or not password:
                 print(f'账号 {i} 配置不完整，跳过')
                 fail_count += 1
                 continue
 
-            print(f'\n[{i}/{len(accounts)}] 正在登录账号: {email}')
+            print(f'\n[{i}/{len(accounts)}] 正在登录账号: {username}')
 
             try:
-                is_logged_in = await self.login_account(email, password)
+                is_logged_in = await self.login_account(username, password)
 
                 if is_logged_in:
                     success_count += 1
-                    print(f'✅ 账号 {email} 登录成功!')
+                    print(f'✅ 账号 {username} 登录成功!')
                 else:
                     fail_count += 1
-                    print(f'❌ 账号 {email} 登录失败')
+                    print(f'❌ 账号 {username} 登录失败')
             except Exception as e:
                 fail_count += 1
-                print(f'❌ 账号 {email} 登录异常: {e}')
+                print(f'❌ 账号 {username} 登录异常: {e}')
 
             # 随机延时 3-8 秒
             if i < len(accounts):

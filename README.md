@@ -9,10 +9,10 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 ## 功能特性
 
 - ✅ 支持 Serv00/CT8 多账号批量登录
-- ✅ 支持 ClawCloud 多账号批量登录（Google 账号）
+- ✅ 支持 ClawCloud 多账号批量登录（GitHub 账号）
 - ✅ GitHub Actions 定时自动运行（每 7 天）
 - ✅ 统一的 Telegram 消息通知
-- ✅ 自动处理 Google 两步验证
+- ✅ 自动处理 GitHub 两步验证和设备验证
 - ✅ 详细的登录日志和进度显示
 - ✅ 账号间自动延时，避免频繁请求
 - ✅ 完全云端运行，无需本地环境
@@ -77,25 +77,26 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 ```json
 [
   {
-    "email": "your-email1@gmail.com",
-    "password": "your-password1"
+    "username": "your-github-username1",
+    "password": "your-github-password1"
   },
   {
-    "email": "your-email2@gmail.com",
-    "password": "your-password2"
+    "username": "your-github-username2",
+    "password": "your-github-password2"
   }
 ]
 ```
 
 **参数说明：**
-- `email`: Google 邮箱地址
-- `password`: Google 账号密码
+- `username`: GitHub 用户名
+- `password`: GitHub 账号密码
 
 **注意事项：**
 - 支持单个或多个账号配置
 - 如果只需要保活 Serv00，只配置 `SERV00_ACCOUNTS_JSON` 即可
 - 如果只需要保活 ClawCloud，只配置 `CLAWCLOUD_ACCOUNTS_JSON` 即可
-- 如果启用了 Google 两步验证，脚本会自动等待 60 秒供你完成验证
+- 如果启用了 GitHub 两步验证，脚本会自动等待 60 秒供你完成验证
+- 如果需要设备验证，脚本会自动等待 80 秒供你完成验证
 
 ### 4. 启用 GitHub Actions
 
@@ -187,12 +188,13 @@ schedule:
 
 ### 4. ClawCloud 登录超时怎么办？
 
-**问题：** Google 两步验证超时
+**问题：** GitHub 两步验证或设备验证超时
 
 **解决：**
-- 脚本会自动等待 60 秒，请在此时间内完成验证
-- 如需更长时间，可以修改脚本中的 `TWO_FACTOR_WAIT` 参数
-- 检查 Google 账号是否正常
+- 两步验证会自动等待 60 秒，请在此时间内完成
+- 设备验证会自动等待 80 秒，请在此时间内完成
+- 如需更长时间，可以修改脚本中的 `TWO_FACTOR_WAIT` 或 `DEVICE_VERIFY_WAIT` 参数
+- 检查 GitHub 账号是否正常
 
 ### 5. Serv00 登录失败怎么办？
 
@@ -210,8 +212,8 @@ JSON 文件中只配置一个账号即可：
 ```json
 [
   {
-    "email": "your-email@gmail.com",
-    "password": "your-password"
+    "username": "your-github-username",
+    "password": "your-github-password"
   }
 ]
 ```
