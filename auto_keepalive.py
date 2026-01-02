@@ -52,20 +52,17 @@ class Telegram:
         payload = {
             'chat_id': self.chat_id,
             'text': message,
-            'parse_mode': 'HTML',
-            'reply_markup': {
-                'inline_keyboard': [
-                    [{'text': '问题反馈❓', 'url': 'https://t.me/yxjsjl'}]
-                ]
-            }
+            'parse_mode': 'HTML'
         }
 
         try:
             response = requests.post(url, json=payload, timeout=30)
-            if response.status_code != 200:
-                print(f"发送 Telegram 消息失败: {response.text}")
+            if response.status_code == 200:
+                print('✅ Telegram 消息发送成功')
+            else:
+                print(f"❌ 发送 Telegram 消息失败: {response.status_code} - {response.text}")
         except Exception as e:
-            print(f"发送 Telegram 消息时出错: {e}")
+            print(f"❌ 发送 Telegram 消息时出错: {e}")
 
     def send_photo(self, photo_path: str, caption: str = ""):
         """发送图片"""
@@ -400,14 +397,19 @@ class ClawCloudLogin:
                     # 点击 Google 登录
                     self.log("步骤2: 点击 Google 登录", "STEP")
                     try:
-                        await page.locator('button:has-text("Google")').first.click()
+                        # 新的页面结构使用 chakra-button 类
+                        await page.locator('button.chakra-button:has-text("Google")').first.click()
                     except:
                         try:
-                            await page.locator('a:has-text("Google")').first.click()
+                            # 备用选择器
+                            await page.locator('button:has-text("Google")').first.click()
                         except:
-                            self.log("找不到 Google 登录按钮", "ERROR")
-                            self.notify(email, False, "找不到 Google 登录按钮")
-                            return False
+                            try:
+                                await page.locator('a:has-text("Google")').first.click()
+                            except:
+                                self.log("找不到 Google 登录按钮", "ERROR")
+                                self.notify(email, False, "找不到 Google 登录按钮")
+                                return False
 
                     await asyncio.sleep(3)
                     await page.wait_for_load_state('networkidle', timeout=30000)
