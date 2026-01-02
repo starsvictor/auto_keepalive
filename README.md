@@ -49,7 +49,6 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 | `CLAWCLOUD_ACCOUNTS_JSON` | ClawCloud 账号配置（JSON 格式） | ClawCloud 必需 |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | 可选（推荐） |
 | `TELEGRAM_CHAT_ID` | Telegram Chat ID | 可选（推荐） |
-| `TOTP_SECRET` | GitHub TOTP 密钥（用于自动化两步验证） | 可选 |
 
 #### 配置示例
 
@@ -79,11 +78,13 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 [
   {
     "username": "your-github-username1",
-    "password": "your-github-password1"
+    "password": "your-github-password1",
+    "mfasecret": "your-github-mfasecret1"
   },
   {
     "username": "your-github-username2",
-    "password": "your-github-password2"
+    "password": "your-github-password2",
+    "mfasecret": "your-github-mfasecret2"
   }
 ]
 ```
@@ -91,6 +92,7 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 **参数说明：**
 - `username`: GitHub 用户名
 - `password`: GitHub 账号密码
+- `mfasecret`: MFA 密钥（可选，用于自动化两步验证）
 
 **注意事项：**
 - 支持单个或多个账号配置
@@ -101,16 +103,24 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 
 #### GitHub 两步验证自动化（可选）
 
-如果您的 GitHub 账号启用了 TOTP 身份验证器（如 Google Authenticator、Authy），可以配置自动化：
+如果您的 GitHub 账号启用了 TOTP 身份验证器（如 Google Authenticator、Authy），可以在账号配置中添加 MFA 密钥实现自动化：
 
-**步骤 1：获取 TOTP 密钥**
+**步骤 1：获取 MFA 密钥**
 1. 在 GitHub 设置两步验证时，会显示一个二维码
 2. 点击"无法扫描？"或"输入此文本代码"
 3. 复制显示的密钥（格式如：`JBSWY3DPEHPK3PXP`）
 
-**步骤 2：配置 Secret**
-1. 在 GitHub Secrets 中添加 `TOTP_SECRET`
-2. 值为上一步复制的密钥
+**步骤 2：配置到 JSON 文件**
+在 `CLAWCLOUD_ACCOUNTS_JSON` 中为对应账号添加 `mfasecret` 字段：
+```json
+[
+  {
+    "username": "your-github-username",
+    "password": "your-github-password",
+    "mfasecret": "JBSWY3DPEHPK3PXP"
+  }
+]
+```
 
 **支持的验证方式：**
 - ✅ **TOTP 身份验证器**（Google Authenticator、Authy 等）- 可自动化
@@ -119,9 +129,10 @@ Serv00、CT8 与 ClawCloud 自动化批量保号，每 7 天自动登录一次�
 - ❌ **安全密钥（Hardware Key）** - 需要物理设备
 
 **工作原理：**
-- 配置 TOTP 密钥后，脚本会自动生成验证码并填入
+- 配置 `mfasecret` 后，脚本会自动生成验证码并填入
 - 如果 TOTP 验证失败或未配置，会自动回退到手动等待模式
 - 手动模式下会发送 Telegram 通知并等待 60 秒
+- 每个账号可以有独立的 MFA 密钥，也可以不配置（可选）
 
 ### 4. 启用 GitHub Actions
 

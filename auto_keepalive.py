@@ -365,13 +365,14 @@ class ClawCloudLogin:
             else:
                 self.tg.send_photo(self.screenshots[-1], "登录成功")
 
-    async def login_account(self, username: str, password: str) -> bool:
+    async def login_account(self, username: str, password: str, mfasecret: str = None) -> bool:
         """
         登录单个 ClawCloud 账号
 
         Args:
             username: GitHub 用户名
             password: GitHub 密码
+            mfasecret: MFA 密钥（可选）
 
         Returns:
             bool: 登录是否成功
@@ -497,15 +498,14 @@ class ClawCloudLogin:
                             self.screenshots.append(f_2fa)
 
                             # 尝试 TOTP 自动填充
-                            totp_secret = os.getenv('TOTP_SECRET')
-                            if totp_secret:
+                            if mfasecret:
                                 try:
                                     import pyotp
 
                                     self.log(f"检测到 TOTP 密钥配置", "INFO")
 
                                     # 清理密钥（移除空格和换行符）
-                                    processed_secret = totp_secret.strip().replace(' ', '').replace('\n', '')
+                                    processed_secret = mfasecret.strip().replace(' ', '').replace('\n', '')
                                     self.log(f"密钥长度: {len(processed_secret)} 字符", "INFO")
 
                                     # 尝试多次验证（最多3次）
@@ -749,6 +749,7 @@ class ClawCloudLogin:
         for i, account in enumerate(accounts, 1):
             username = account.get('username')
             password = account.get('password')
+            mfasecret = account.get('mfasecret')  # 从账号配置中读取 MFA 密钥
 
             if not username or not password:
                 print(f'账号 {i} 配置不完整，跳过')
@@ -758,7 +759,7 @@ class ClawCloudLogin:
             print(f'\n[{i}/{len(accounts)}] 正在登录账号: {username}')
 
             try:
-                is_logged_in = await self.login_account(username, password)
+                is_logged_in = await self.login_account(username, password, mfasecret)
 
                 if is_logged_in:
                     success_count += 1
