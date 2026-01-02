@@ -139,23 +139,31 @@ class Serv00Login:
             await page.type('#id_username', username)
             await page.type('#id_password', password)
 
-            # 点击登录按钮
+            # 等待登录按钮可见并点击
             # 尝试多种选择器以确保找到按钮
-            login_button = await page.querySelector('button[type="submit"]')
-            if not login_button:
-                login_button = await page.querySelector('button.button--primary')
-            if not login_button:
-                login_button = await page.querySelector('input[type="submit"]')
-            if not login_button:
-                login_button = await page.querySelector('#submit')
-            if not login_button:
-                # 尝试通过文本内容查找
-                login_button = await page.querySelector('button:has-text("Sign in")')
+            login_button = None
+            selectors = [
+                'button[type="submit"]',
+                'button.button--primary',
+                'input[type="submit"]',
+                '#submit'
+            ]
 
-            if login_button:
-                await login_button.click()
-            else:
+            for selector in selectors:
+                try:
+                    login_button = await page.querySelector(selector)
+                    if login_button:
+                        # 等待按钮可见
+                        await page.waitForSelector(selector, {'visible': True, 'timeout': 5000})
+                        break
+                except:
+                    continue
+
+            if not login_button:
                 raise Exception('无法找到登录按钮')
+
+            # 使用 JavaScript 点击按钮（更可靠）
+            await page.evaluate('(button) => button.click()', login_button)
 
             # 等待页面跳转
             await page.waitForNavigation()
@@ -267,7 +275,7 @@ class ClawCloudLogin:
             pass
         return filename
 
-    def notify(self, success: bool, error: str = ""):
+    def notify(self, email: str, success: bool, error: str = ""):
         """发送通知"""
         if not self.tg.enabled:
             return
@@ -275,7 +283,7 @@ class ClawCloudLogin:
         msg = f"""<b>ClawCloud 自动登录</b>
 
 <b>状态:</b> {"✅ 成功" if success else "❌ 失败"}
-<b>用户:</b> {self.username}
+<b>用户:</b> {email}
 <b>时间:</b> {time.strftime('%Y-%m-%d %H:%M:%S')}"""
 
         if error:
@@ -336,7 +344,7 @@ class ClawCloudLogin:
 
                     if 'signin' not in page.url.lower():
                         self.log("已登录！", "SUCCESS")
-                        self.notify(True)
+                        self.notify(email, True)
                         print('\n✅ ClawCloud 登录成功!\n')
                         return True
 
@@ -349,7 +357,7 @@ class ClawCloudLogin:
                             await page.locator('a:has-text("Google")').first.click()
                         except:
                             self.log("找不到 Google 登录按钮", "ERROR")
-                            self.notify(False, "找不到 Google 登录按钮")
+                            self.notify(email, False, "找不到 Google 登录按钮")
                             return False
 
                     await asyncio.sleep(3)
@@ -376,12 +384,12 @@ class ClawCloudLogin:
                             self.screenshots.append(f"{self.screenshot_count:02d}_google_输入邮箱后.png")
                         except Exception as e:
                             self.log(f"输入邮箱失败: {e}", "ERROR")
-                            self.notify(False, f"输入邮箱失败: {e}")
+                            self.notify(email, False, f"输入邮箱失败: {e}")
                             return False
 
                         # 输入密码
                         try:
-                            await page.locator('input[type="password"]').fill(password)
+                            await page.locator('input[type="password"]').fill(password, timeout=60000)
                             await page.locator('button:has-text("下一步"), button:has-text("Next")').first.click()
                             await asyncio.sleep(3)
                             await page.wait_for_load_state('networkidle', timeout=30000)
@@ -390,7 +398,7 @@ class ClawCloudLogin:
                             self.screenshots.append(f"{self.screenshot_count:02d}_google_输入密码后.png")
                         except Exception as e:
                             self.log(f"输入密码失败: {e}", "ERROR")
-                            self.notify(False, f"输入密码失败: {e}")
+                            self.notify(email, False, f"输入密码失败: {e}")
                             return False
 
                         # 处理两步验证（如果需要）
@@ -412,7 +420,7 @@ class ClawCloudLogin:
                                         break
                             else:
                                 self.log("2FA 验证超时", "ERROR")
-                                self.notify(False, "2FA 验证超时")
+                                self.notify(email, False, "2FA 验证超时")
                                 return False
 
                     # 等待重定向
@@ -424,13 +432,13 @@ class ClawCloudLogin:
                         await asyncio.sleep(1)
                     else:
                         self.log("重定向超时", "ERROR")
-                        self.notify(False, "重定向超时")
+                        self.notify(email, False, "重定向超时")
                         return False
 
                     self.screenshot_count += 1
                     await page.screenshot(path=f"{self.screenshot_count:02d}_完成.png")
                     self.screenshots.append(f"{self.screenshot_count:02d}_完成.png")
-                    self.notify(True)
+                    self.notify(email, True)
                     print('\n✅ ClawCloud 登录成功!\n')
                     return True
 
@@ -439,7 +447,7 @@ class ClawCloudLogin:
                     self.screenshot_count += 1
                     await page.screenshot(path=f"{self.screenshot_count:02d}_异常.png")
                     self.screenshots.append(f"{self.screenshot_count:02d}_异常.png")
-                    self.notify(False, str(e))
+                    self.notify(email, False, str(e))
                     return False
 
                 finally:
