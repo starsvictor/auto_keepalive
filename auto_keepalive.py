@@ -468,23 +468,12 @@ class ClawCloudLogin:
                             if totp_secret:
                                 try:
                                     import pyotp
-                                    import base64
 
                                     self.log(f"检测到 TOTP 密钥配置", "INFO")
 
-                                    # 处理密钥格式
-                                    processed_secret = totp_secret.strip()
-
-                                    # 检测并转换 Base64 格式
-                                    if '+' in processed_secret or '/' in processed_secret or '=' in processed_secret:
-                                        self.log(f"检测到 Base64 格式密钥，尝试转换为 Base32", "INFO")
-                                        try:
-                                            decoded = base64.b64decode(processed_secret)
-                                            processed_secret = base64.b32encode(decoded).decode('utf-8').rstrip('=')
-                                            self.log(f"Base64 → Base32 转换成功", "INFO")
-                                        except Exception as e:
-                                            self.log(f"Base64 转换失败: {e}，尝试直接使用", "WARN")
-                                            processed_secret = totp_secret.strip()
+                                    # 清理密钥（移除空格和换行符）
+                                    processed_secret = totp_secret.strip().replace(' ', '').replace('\n', '')
+                                    self.log(f"密钥长度: {len(processed_secret)} 字符", "INFO")
 
                                     # 尝试多次验证（最多3次）
                                     max_attempts = 3
