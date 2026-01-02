@@ -279,7 +279,7 @@ class Serv00Login:
 
         # 构建简洁的通知消息
         now_time = format_to_iso(datetime.utcnow() + timedelta(hours=8))
-        message = f'<b>🔐 Serv00/CT8 自动登录</b>\n\n'
+        message = f'🔐 <b>Serv00/CT8 自动登录</b>\n\n'
         message += f'<b>时间:</b> {now_time}\n'
         message += f'<b>总计:</b> {len(accounts)} 个账号\n'
         message += f'<b>成功:</b> {len(success_accounts)} ✅\n'
@@ -336,21 +336,20 @@ class ClawCloudLogin:
         return filename
 
     def notify(self, username: str, success: bool, error: str = ""):
-        """发送通知"""
+        """发送单个账号登录通知"""
         if not self.tg.enabled:
             return
 
         status_icon = "✅" if success else "❌"
         status_text = "成功" if success else "失败"
 
-        msg = f"""<b>🌐 ClawCloud 自动登录</b>
-
-<b>状态:</b> {status_icon} {status_text}
-<b>账号:</b> {username}
-<b>时间:</b> {time.strftime('%Y-%m-%d %H:%M:%S')}"""
+        msg = f'🌐 <b>ClawCloud 自动登录</b>\n\n'
+        msg += f'<b>状态:</b> {status_icon} {status_text}\n'
+        msg += f'<b>账号:</b> {username}\n'
+        msg += f'<b>时间:</b> {format_to_iso(datetime.utcnow() + timedelta(hours=8))}\n'
 
         if error:
-            msg += f"\n<b>错误:</b> {error}"
+            msg += f'\n<b>错误:</b> {error}'
 
         if not success and self.logs:
             msg += "\n\n<b>关键日志:</b>\n" + "\n".join(self.logs[-3:])
@@ -747,6 +746,8 @@ class ClawCloudLogin:
 
         success_count = 0
         fail_count = 0
+        success_accounts = []
+        failed_accounts = []
 
         for i, account in enumerate(accounts, 1):
             username = account.get('username')
@@ -756,6 +757,7 @@ class ClawCloudLogin:
             if not username or not password:
                 print(f'账号 {i} 配置不完整，跳过')
                 fail_count += 1
+                failed_accounts.append(username or f'账号{i}')
                 continue
 
             print(f'\n[{i}/{len(accounts)}] 正在登录账号: {username}')
@@ -765,12 +767,15 @@ class ClawCloudLogin:
 
                 if is_logged_in:
                     success_count += 1
+                    success_accounts.append(username)
                     print(f'✅ 账号 {username} 登录成功!')
                 else:
                     fail_count += 1
+                    failed_accounts.append(username)
                     print(f'❌ 账号 {username} 登录失败')
             except Exception as e:
                 fail_count += 1
+                failed_accounts.append(username)
                 print(f'❌ 账号 {username} 登录异常: {e}')
 
             # 随机延时 3-8 秒
@@ -785,12 +790,23 @@ class ClawCloudLogin:
 
         # 发送汇总通知
         if self.tg.enabled:
-            summary = f"""<b>ClawCloud 批量登录完成</b>
+            now_time = format_to_iso(datetime.utcnow() + timedelta(hours=8))
+            summary = f'🌐 <b>ClawCloud 批量登录完成</b>\n\n'
+            summary += f'<b>时间:</b> {now_time}\n'
+            summary += f'<b>总计:</b> {len(accounts)} 个账号\n'
+            summary += f'<b>成功:</b> {success_count} ✅\n'
+            summary += f'<b>失败:</b> {fail_count} ❌\n'
 
-<b>总计:</b> {len(accounts)} 个账号
-<b>成功:</b> {success_count}
-<b>失败:</b> {fail_count}
-<b>时间:</b> {time.strftime('%Y-%m-%d %H:%M:%S')}"""
+            if success_accounts:
+                summary += f'\n<b>成功账号:</b>\n'
+                for acc in success_accounts:
+                    summary += f'  • {acc}\n'
+
+            if failed_accounts:
+                summary += f'\n<b>失败账号:</b>\n'
+                for acc in failed_accounts:
+                    summary += f'  • {acc}\n'
+
             self.tg.send(summary)
 
         return success_count > 0
