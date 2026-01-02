@@ -598,6 +598,41 @@ class ClawCloudLogin:
                                 self.notify(username, False, "设备验证超时")
                                 return False
 
+                        # 处理 OAuth 授权页面（如果需要）
+                        if 'github.com' in page.url and ('authorize' in page.url or 'login/oauth' in page.url):
+                            self.log("检测到 GitHub OAuth 授权页面", "WARN")
+                            self.screenshot_count += 1
+                            await page.screenshot(path=f"{self.screenshot_count:02d}_oauth_授权.png")
+                            self.screenshots.append(f"{self.screenshot_count:02d}_oauth_授权.png")
+
+                            # 尝试自动点击授权按钮
+                            try:
+                                # 查找授权按钮（多种可能的选择器）
+                                authorize_selectors = [
+                                    'button[type="submit"][name="authorize"]',
+                                    'button:has-text("Authorize")',
+                                    'input[type="submit"][value="Authorize"]',
+                                    'button.btn-primary:has-text("Authorize")'
+                                ]
+
+                                authorized = False
+                                for selector in authorize_selectors:
+                                    try:
+                                        authorize_btn = page.locator(selector).first
+                                        if await authorize_btn.count() > 0:
+                                            self.log(f"找到授权按钮，自动点击授权", "INFO")
+                                            await authorize_btn.click()
+                                            await asyncio.sleep(3)
+                                            authorized = True
+                                            break
+                                    except:
+                                        continue
+
+                                if not authorized:
+                                    self.log("未找到授权按钮，可能已授权或需要手动操作", "WARN")
+                            except Exception as e:
+                                self.log(f"处理 OAuth 授权时出错: {e}", "WARN")
+
                     # 等待重定向
                     self.log("步骤4: 等待重定向", "STEP")
                     for i in range(60):
