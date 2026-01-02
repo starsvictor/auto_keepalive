@@ -408,7 +408,6 @@ class ClawCloudLogin:
 
                     if 'signin' not in page.url.lower():
                         self.log("已登录！", "SUCCESS")
-                        self.notify(username, True)
                         print('\n✅ ClawCloud 登录成功!\n')
                         return True
 
@@ -703,7 +702,6 @@ class ClawCloudLogin:
                     self.screenshot_count += 1
                     await page.screenshot(path=f"{self.screenshot_count:02d}_完成.png")
                     self.screenshots.append(f"{self.screenshot_count:02d}_完成.png")
-                    self.notify(username, True)
                     print('\n✅ ClawCloud 登录成功!\n')
                     return True
 
