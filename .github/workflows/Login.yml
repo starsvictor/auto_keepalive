@@ -26,7 +26,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install pyppeteer aiofiles requests playwright
+          pip install pyppeteer aiofiles requests playwright pyotp
           playwright install chromium --with-deps
 
       - name: Create Serv00 accounts file

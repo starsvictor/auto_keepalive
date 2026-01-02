@@ -439,25 +439,53 @@ class ClawCloudLogin:
 
                         # 处理两步验证（如果需要）
                         if 'sessions/two-factor' in page.url or 'two_factor' in page.url:
-                            self.log(f"需要两步验证，等待 {TWO_FACTOR_WAIT} 秒...", "WARN")
+                            self.log(f"检测到两步验证", "WARN")
                             self.screenshot_count += 1
                             f_2fa = f"{self.screenshot_count:02d}_github_2fa.png"
                             await page.screenshot(path=f_2fa)
                             self.screenshots.append(f_2fa)
-                            self.tg.send(f"⚠️ <b>需要 GitHub 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
-                            self.tg.send_photo(f_2fa, "GitHub 两步验证页面")
 
-                            for i in range(TWO_FACTOR_WAIT):
-                                await asyncio.sleep(1)
-                                if i % 10 == 0:
-                                    await page.reload(timeout=10000)
+                            # 尝试 TOTP 自动填充
+                            totp_secret = os.getenv('GITHUB_TOTP_SECRET')
+                            if totp_secret:
+                                try:
+                                    import pyotp
+                                    totp = pyotp.TOTP(totp_secret)
+                                    code = totp.now()
+                                    self.log(f"使用 TOTP 自动填充验证码", "INFO")
+                                    await page.locator('input[name="otp"]').fill(code)
+                                    await page.locator('button[type="submit"]').click()
+                                    await asyncio.sleep(3)
+                                    await page.wait_for_load_state('networkidle', timeout=30000)
+
                                     if 'two-factor' not in page.url and 'two_factor' not in page.url:
-                                        self.log("2FA 验证成功", "SUCCESS")
-                                        break
-                            else:
-                                self.log("2FA 验证超时", "ERROR")
-                                self.notify(username, False, "2FA 验证超时")
-                                return False
+                                        self.log("TOTP 验证成功", "SUCCESS")
+                                        self.tg.send("✅ <b>TOTP 两步验证成功</b>")
+                                    else:
+                                        self.log("TOTP 验证失败，等待手动输入", "WARN")
+                                        raise Exception("TOTP failed")
+                                except ImportError:
+                                    self.log("未安装 pyotp，需要手动验证", "WARN")
+                                    raise Exception("pyotp not installed")
+                                except Exception as e:
+                                    self.log(f"TOTP 自动填充失败: {e}，等待手动输入", "WARN")
+
+                            # 如果 TOTP 失败或未配置，等待手动输入
+                            if 'two-factor' in page.url or 'two_factor' in page.url:
+                                self.tg.send(f"⚠️ <b>需要 GitHub 两步验证</b>\n\n请在 {TWO_FACTOR_WAIT} 秒内完成")
+                                self.tg.send_photo(f_2fa, "GitHub 两步验证页面")
+
+                                for i in range(TWO_FACTOR_WAIT):
+                                    await asyncio.sleep(1)
+                                    if i % 10 == 0:
+                                        await page.reload(timeout=10000)
+                                        if 'two-factor' not in page.url and 'two_factor' not in page.url:
+                                            self.log("2FA 验证成功", "SUCCESS")
+                                            break
+                                else:
+                                    self.log("2FA 验证超时", "ERROR")
+                                    self.notify(username, False, "2FA 验证超时")
+                                    return False
 
                         # 处理设备验证（如果需要）
                         if 'sessions/verified-device' in page.url:
