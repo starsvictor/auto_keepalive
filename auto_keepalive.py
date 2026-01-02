@@ -542,6 +542,7 @@ class ClawCloudLogin:
                                                 raise Exception("无法找到 TOTP 输入框")
 
                                             # 提交验证码 - 尝试多种按钮选择器
+                                            # 注意：某些 GitHub 2FA 页面会在输入完成后自动提交，无需点击按钮
                                             submit_selectors = [
                                                 'button:has-text("Verify")',  # GitHub 2FA 页面的 Verify 按钮
                                                 'button[type="submit"]',
@@ -562,9 +563,10 @@ class ClawCloudLogin:
                                                     continue
 
                                             if not submitted:
-                                                raise Exception("无法找到提交按钮")
+                                                # 如果没有找到提交按钮，可能是自动提交的表单
+                                                self.log("未找到提交按钮，可能是自动提交表单", "INFO")
 
-                                            self.log(f"已提交验证码，等待验证结果...", "INFO")
+                                            self.log(f"等待验证结果...", "INFO")
 
                                             # 等待页面响应
                                             await asyncio.sleep(3)
