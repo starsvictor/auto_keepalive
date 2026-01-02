@@ -450,6 +450,22 @@ class ClawCloudLogin:
                             if totp_secret:
                                 try:
                                     import pyotp
+                                    import base64
+
+                                    # 尝试处理不同格式的密钥
+                                    try:
+                                        # 如果包含 + 或 / 或 =，可能是 Base64 格式，尝试转换
+                                        if '+' in totp_secret or '/' in totp_secret or '=' in totp_secret:
+                                            self.log(f"检测到 Base64 格式密钥，尝试转换为 Base32", "INFO")
+                                            # 解码 Base64
+                                            decoded = base64.b64decode(totp_secret)
+                                            # 转换为 Base32
+                                            import base64
+                                            totp_secret = base64.b32encode(decoded).decode('utf-8').rstrip('=')
+                                            self.log(f"密钥转换成功", "INFO")
+                                    except Exception as e:
+                                        self.log(f"密钥格式转换失败: {e}，使用原始密钥", "WARN")
+
                                     totp = pyotp.TOTP(totp_secret)
                                     code = totp.now()
                                     self.log(f"使用 TOTP 自动填充验证码", "INFO")
